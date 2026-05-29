@@ -12,14 +12,14 @@
     # --- Phase 2: Build locally ---
     - name: Build Java application locally
       ansible.builtin.command:
+        chdir: "./my-app"
         cmd: ./gradlew build
-        chdir: "../java-gradle-app"   # path to your gradle project, relative to the playbook
       delegate_to: localhost
       become: no
 
     - name: Set jar artifact path
       ansible.builtin.set_fact:
-        jar_full_path: "../java-gradle-app/build/libs/{{ jar_name }}"
+        jar_full_path: "./my-app/build/libs/{{ jar_name }}"
       delegate_to: localhost
     
     # --- Phase 3: Prepare remote server ---
@@ -47,6 +47,7 @@
     - name: Stop running application
       ansible.builtin.shell: "pkill -f {{ jar_name }}"
       when: app_pid.rc == 0
+      failed_when: false
 
     - name: Remove old jar file
       ansible.builtin.file:
