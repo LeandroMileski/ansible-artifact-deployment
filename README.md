@@ -24,3 +24,10 @@ ansible-artifact-deployment/
 ├── group_vars/all.yml  # shared configuration
 └── deploy.yml          # main playbook
 ```
+
+<img width="1468" height="698" alt="image" src="https://github.com/user-attachments/assets/3e317ed6-c7dc-4029-a060-4f46ea1a6d7b" />
+<img width="1464" height="290" alt="image" src="https://github.com/user-attachments/assets/04fc907a-941f-4b81-835a-96f5891af815" />
+
+
+
+
