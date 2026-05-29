@@ -1,4 +1,4 @@
-.gradle*
+my-app/.gradle/
 .idea
-build
+my-app/build/
 out
