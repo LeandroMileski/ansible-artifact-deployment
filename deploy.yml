@@ -1,0 +1,92 @@
+# deploy.yml
+---
+- name: Build and deploy Java application
+  hosts: ubuntu_servers
+  become: yes
+
+  vars:
+    linux_user: "{{ linux_user }}"   # passed in via --extra-vars
+
+  tasks:
+  
+    # --- Phase 2: Build locally ---
+    - name: Build Java application locally
+      ansible.builtin.command:
+        cmd: ./gradlew build
+        chdir: "../java-gradle-app"   # path to your gradle project, relative to the playbook
+      delegate_to: localhost
+      become: no
+
+    - name: Set jar artifact path
+      ansible.builtin.set_fact:
+        jar_full_path: "../java-gradle-app/build/libs/{{ jar_name }}"
+      delegate_to: localhost
+    
+    # --- Phase 3: Prepare remote server ---
+    - name: Create Linux user if not exists
+      ansible.builtin.user:
+        name: "{{ linux_user }}"
+        create_home: yes
+        state: present
+
+    - name: Create deployment directory
+      ansible.builtin.file:
+        path: "{{ deploy_dir }}"
+        state: directory
+        owner: "{{ linux_user }}"
+        group: "{{ linux_user }}"
+        mode: '0755'
+
+    # --- Phase 4: Stop and Clean previous deployment ---
+    - name: Check if application is running
+      ansible.builtin.shell: "pgrep -f {{ jar_name }}"
+      register: app_pid
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Stop running application
+      ansible.builtin.shell: "pkill -f {{ jar_name }}"
+      when: app_pid.rc == 0
+
+    - name: Remove old jar file
+      ansible.builtin.file:
+        path: "{{ deploy_dir }}/{{ jar_name }}"
+        state: absent
+      when: app_pid.rc == 0
+
+    # --- Phase 5: Copy the JAR to the Remote server ---
+    - name: Copy jar to remote server
+      ansible.builtin.copy:
+        src: "{{ jar_full_path }}"
+        dest: "{{ deploy_dir }}/{{ jar_name }}"
+        owner: "{{ linux_user }}"
+        group: "{{ linux_user }}"
+        mode: '0644'
+
+    - name: Verify jar file exists on remote
+      ansible.builtin.stat:
+        path: "{{ deploy_dir }}/{{ jar_name }}"
+      register: jar_stat
+
+    - name: Fail if jar was not copied successfully
+      ansible.builtin.fail:
+        msg: "JAR file was not found at {{ deploy_dir }}/{{ jar_name }}"
+      when: not jar_stat.stat.exists
+
+    # --- Phase 6: Start Java application
+    - name: Start Java application
+      ansible.builtin.shell: "nohup java -jar {{ deploy_dir }}/{{ jar_name }} > {{ deploy_dir }}/app.log 2>&1 &"
+      become: yes
+      become_user: "{{ linux_user }}"
+
+    - name: Save application PID
+      ansible.builtin.shell: "pgrep -f {{ jar_name }}"
+      register: new_pid
+      changed_when: false
+
+    - name: Write PID to file
+      ansible.builtin.copy:
+        content: "{{ new_pid.stdout }}"
+        dest: "{{ deploy_dir }}/app.pid"
+        owner: "{{ linux_user }}"
+        group: "{{ linux_user }}"

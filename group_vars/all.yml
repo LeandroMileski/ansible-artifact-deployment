@@ -1,0 +1,5 @@
+# group_vars/all.yml
+linux_user: ""                              # overridden at runtime via --extra-vars
+jar_source_path: "../java-gradle-app/build/libs/my-app.jar"  # local path after gradle build
+deploy_dir: "/home/{{ linux_user }}/app"   # remote deploy target
+jar_name: "my-app.jar"
